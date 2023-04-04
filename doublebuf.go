@@ -43,6 +43,20 @@ func (db *DoubleBuffer[T]) Back(ctx context.Context) (*T, error) {
 	return db.back, nil
 }
 
+// TryBack returns the next back buffer if it is ready.
+// It does not block.
+func (db *DoubleBuffer[T]) TryBack() (t *T, ok bool) {
+	if db.back == nil { // db.back has been submitted via a previous call to ready
+		// wait for the consumer to replace the back buffer
+		select {
+		case db.back = <-db.prev:
+		default:
+			return nil, false
+		}
+	}
+	return db.back, true
+}
+
 // Ready is used to signal that the back buffer is ready to be swapped with
 // the front buffer in the next call to Next.
 // It is safe to call Ready concurrently with Next and Front.
